@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import asyncio
 import random
 from datetime import datetime
@@ -8,12 +8,12 @@ import os
 from flask import Flask
 from threading import Thread
 
-#Создание бота с несколькими префиксами
+# Создание бота с несколькими префиксами
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=["!", ".", "/"], intents=intents, help_command=None)
 
-# Веб-сервер для UptimeRobot
+# Веб-сервер для Render Uptime
 app = Flask('')
 
 @app.route('/')
@@ -85,12 +85,10 @@ async def on_message(message):
 # Автоматическая справка
 @bot.command(name="help", help="Показывает список всех команд")
 async def help_command(ctx):
-    help_text = "**📖 Команды бота:**
-"
+    help_text = "**📖 Команды бота:**\n"
     for command in bot.commands:
-        if command.name not in ["say", "sayto"]:
-            help_text += f"**.{command.name}** — {command.help or 'Без описания'}
-"
+        if command.name not in ["say", "sayto"]:  # скрыты из списка
+            help_text += f"**.{command.name}** — {command.help or 'Без описания'}\n"
     await ctx.send(help_text)
 
 # Очистка
@@ -133,14 +131,12 @@ async def cleanchannels(ctx):
     if not clean_schedule:
         await ctx.send("📭 Список каналов для автоочистки пуст.")
         return
-    text = "**🧼 Расписание автоочистки каналов:**
-"
+    text = "**🧼 Расписание автоочистки каналов:**\n"
     for cid, sched in clean_schedule.items():
         channel = bot.get_channel(cid)
         day_str = list(DAYS.keys())[list(DAYS.values()).index(sched['day'])].capitalize()
         time_str = f"{sched['hour']:02d}:{sched['minute']:02d}"
-        text += f"- {channel.mention if channel else f'Unknown (ID: {cid})'} — **{day_str} {time_str} МСК**
-"
+        text += f"- {channel.mention if channel else f'Unknown (ID: {cid})'} — **{day_str} {time_str} МСК**\n"
     await ctx.send(text)
 
 @bot.command(help="Удаляет сообщения. Пример: .purge 100")
@@ -149,7 +145,7 @@ async def purge(ctx, amount: int):
     deleted = await ctx.channel.purge(limit=amount)
     await ctx.send(f"**🧹 Удалено {len(deleted)} сообщений**", delete_after=3)
 
-@bot.loop(minutes=1)
+@tasks.loop(minutes=1)
 async def cleaner_loop():
     now = datetime.now(pytz.timezone("Europe/Moscow"))
     for cid, sched in clean_schedule.items():
@@ -157,9 +153,7 @@ async def cleaner_loop():
             channel = bot.get_channel(cid)
             if channel:
                 deleted = await channel.purge(limit=1000)
-                await channel.send(f"**Перезагрузка бота...**
-✅ **Выполнено очищение чата: ({len(deleted)})**")
-    await asyncio.sleep(60)
+                await channel.send(f"**Перезагрузка бота...**\n✅ **Выполнено очищение чата: ({len(deleted)})**")
 
 keep_alive()
 bot.run(os.getenv("TOKEN"))
